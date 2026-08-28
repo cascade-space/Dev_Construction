@@ -196,13 +196,13 @@ function requireAuth(req, res, next) {
   const session = activeSessions.get(token);
   if (!session) {
     // Clear stale cookie
-    res.clearCookie('adminToken');
+    res.clearCookie('adminToken', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'none' });
     return res.status(401).json({ error: 'Session expired. Please log in again.' });
   }
   // Check session TTL
   if (Date.now() - session.createdAt > SESSION_TTL_MS) {
     activeSessions.delete(token);
-    res.clearCookie('adminToken');
+    res.clearCookie('adminToken', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'none' });
     return res.status(401).json({ error: 'Session expired. Please log in again.' });
   }
   next();
@@ -231,11 +231,11 @@ app.post('/api/admin/login', loginLimiter, async (req, res) => {
     const token = randomUUID();
     activeSessions.set(token, { createdAt: Date.now() });
 
-    // Set HttpOnly + Secure + SameSite=Strict cookie
+    // Set HttpOnly + Secure + SameSite=None cookie for cross-domain auth
     res.cookie('adminToken', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production', // Must be true when sameSite is 'none'
+      sameSite: 'none',
       signed: true,
       maxAge: SESSION_TTL_MS,
     });
@@ -255,7 +255,7 @@ app.get('/api/admin/session', (req, res) => {
   const valid = !!session && (Date.now() - session.createdAt <= SESSION_TTL_MS);
   if (!valid) {
     activeSessions.delete(token);
-    res.clearCookie('adminToken');
+    res.clearCookie('adminToken', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'none' });
   }
   res.json({ valid });
 });
@@ -264,7 +264,7 @@ app.get('/api/admin/session', (req, res) => {
 app.post('/api/admin/logout', (req, res) => {
   const token = req.signedCookies?.adminToken;
   if (token) activeSessions.delete(token);
-  res.clearCookie('adminToken');
+  res.clearCookie('adminToken', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'none' });
   res.json({ success: true });
 });
 

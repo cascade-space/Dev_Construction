@@ -275,9 +275,16 @@ const mockApiPlugin = (env: Record<string, string>) => {
 };
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  const plugins = [react()];
+  
+  // Only load the mock API during local development ('serve'), not during 'build'
+  if (command === 'serve') {
+    plugins.push(mockApiPlugin(env));
+  }
+  
   return {
-    plugins: [react(), mockApiPlugin(env)],
+    plugins,
   };
 });
